@@ -8,6 +8,14 @@ The dividends endpoints expose the on-chain dividend distribution contract. A di
 
 All amounts are `i128` values serialized as decimal strings to avoid precision loss in JSON.
 
+## Related reference pages
+
+- [Tokens API](/docs/api/tokens) — SEP-41 token balances and metadata for `payment_token` and `asset_token`.
+- [Assets API](/docs/api/assets) — look up the asset behind an `asset_token` contract address.
+- [Accounts API](/docs/api/accounts) — resolve holder and admin `G...` account addresses.
+- [SEP-41 token interface](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md) — the token standard used for payouts.
+- [Stellar Asset Contract (SAC)](https://developers.stellar.org/docs/tokens/stellar-asset-contract) — how classic assets are wrapped as SEP-41 contracts.
+
 ## Glossary
 
 New to Stellar? These terms appear throughout this page.
@@ -169,7 +177,7 @@ Initiates a two-step admin handover. The new admin must accept before the change
 
 ## SEP-41 payment tokens
 
-Any SEP-41 compliant token can be used as `payment_token`. The contract calls `transfer` on the token when a holder claims, so the token must be deployed and the distribution contract must be funded before claims succeed. Use the token's `balance` entry point to confirm funding.
+Any SEP-41 compliant token can be used as `payment_token`. The contract calls `transfer` on the token when a holder claims, so the token must be deployed and the distribution contract must be funded before claims succeed. Use the token's `balance` entry point to confirm funding — see the [Tokens API](/docs/api/tokens) for the balance endpoint.
 
 ## Worked example (Testnet)
 
@@ -184,7 +192,7 @@ export PAYMENT_TOKEN="CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
 
 ### 1. Confirm the payment token is funded
 
-Before creating a distribution, verify the distribution contract holds enough `payment_token` to cover payouts. Query the token's `balance` entry point for the distribution contract address:
+Before creating a distribution, verify the distribution contract holds enough `payment_token` to cover payouts. Query the token's `balance` entry point for the distribution contract address (see the [Tokens API](/docs/api/tokens)):
 
 ```bash
 curl "$API/api/tokens/$PAYMENT_TOKEN/balance?address=$ASSET_TOKEN"
@@ -239,36 +247,4 @@ A holder of `asset_token` who has satisfied the minimum holding period claims th
 curl -X POST "$API/api/dividends/1/claim"
 ```
 
-The response is the updated `Distribution` with `distributed` and `claimed_percent` reflecting the payout:
-
-```json
-{
-  "id": 1,
-  "asset_token": "CBMCWLSQSWUTLUJFCNBHNBSXMUM3XU7NAQ5TSNERW4HA4ZZBYHLG4ECZ",
-  "payment_token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
-  "total_amount": "100000000000",
-  "distributed": "25000000000",
-  "claimed_percent": 25.0,
-  "overflow_detected": false,
-  "completed": false,
-  "created_at_ledger": 3510000
-}
-```
-
-### 5. Reclaim the remainder after the deadline
-
-Once `deadline_ledger` has passed, the creator reclaims any unclaimed remainder:
-
-```bash
-curl -X POST "$API/api/dividends/1/reclaim"
-```
-
-This returns the updated `Distribution` with `completed: true` once the remainder is refunded.
-
-### Common errors
-
-| Status | Cause |
-| --- | --- |
-| `400` | Malformed body or `total_amount` not a valid `i128` string |
-| `404` | Distribution `id` does not exist |
-| `409` | Claim attempted before the minimum holding period, or reclaim before `deadline_ledger` |
+The response is the updated `Distribution` with `distributed` and `claimed_percent`
