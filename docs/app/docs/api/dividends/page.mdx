@@ -8,6 +8,19 @@ The dividends endpoints expose the on-chain dividend distribution contract. A di
 
 All amounts are `i128` values serialized as decimal strings to avoid precision loss in JSON.
 
+## Glossary
+
+New to Stellar? These terms appear throughout this page.
+
+- **Ledger** — a single block of transactions on the Stellar network. Ledgers close roughly every 5 seconds, so `17280` ledgers is about one day. Ledger numbers are used here as a clock (e.g. `deadline_ledger`, `created_at_ledger`).
+- **Contract address** — a `C...` string identifying a deployed Soroban smart contract (e.g. `asset_token`, `payment_token`).
+- **Account address** — a `G...` string identifying a Stellar account (e.g. a holder or admin).
+- **SEP-41** — the Stellar token interface standard. Any token implementing it exposes entry points such as `transfer` and `balance`.
+- **SAC (Stellar Asset Contract)** — the built-in SEP-41 contract that wraps a classic Stellar asset so it can be used from Soroban. A SAC address is a valid `payment_token`.
+- **`i128`** — a 128-bit signed integer, the amount type used by SEP-41 tokens. It is sent as a decimal string in JSON because JavaScript numbers cannot represent it exactly.
+- **Entry point** — a function exposed by a contract that can be invoked (e.g. `transfer`, `balance`).
+- **Admin** — the account authorized to change contract settings (e.g. the minimum holding period or admin handover).
+
 ## Distribution object
 
 ```json
