@@ -157,3 +157,105 @@ Initiates a two-step admin handover. The new admin must accept before the change
 ## SEP-41 payment tokens
 
 Any SEP-41 compliant token can be used as `payment_token`. The contract calls `transfer` on the token when a holder claims, so the token must be deployed and the distribution contract must be funded before claims succeed. Use the token's `balance` entry point to confirm funding.
+
+## Worked example (Testnet)
+
+This walkthrough runs end-to-end against the current Testnet deployment. Set the base URL and the two contract addresses once, then run each step in order.
+
+```bash
+# Testnet API base URL and the contracts used in this example
+export API="https://api.example.com"
+export ASSET_TOKEN="CBMCWLSQSWUTLUJFCNBHNBSXMUM3XU7NAQ5TSNERW4HA4ZZBYHLG4ECZ"
+export PAYMENT_TOKEN="CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
+```
+
+### 1. Confirm the payment token is funded
+
+Before creating a distribution, verify the distribution contract holds enough `payment_token` to cover payouts. Query the token's `balance` entry point for the distribution contract address:
+
+```bash
+curl "$API/api/tokens/$PAYMENT_TOKEN/balance?address=$ASSET_TOKEN"
+```
+
+```json
+{ "balance": "100000000000" }
+```
+
+### 2. Create a distribution
+
+```bash
+curl -X POST "$API/api/dividends" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asset_token": "'"$ASSET_TOKEN"'",
+    "payment_token": "'"$PAYMENT_TOKEN"'",
+    "total_amount": "100000000000",
+    "deadline_ledger": 3600000
+  }'
+```
+
+A successful create returns the new `Distribution` object. Note the `id` for the following steps:
+
+```json
+{
+  "id": 1,
+  "asset_token": "CBMCWLSQSWUTLUJFCNBHNBSXMUM3XU7NAQ5TSNERW4HA4ZZBYHLG4ECZ",
+  "payment_token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+  "total_amount": "100000000000",
+  "distributed": "0",
+  "claimed_percent": 0.0,
+  "overflow_detected": false,
+  "completed": false,
+  "created_at_ledger": 3510000
+}
+```
+
+### 3. Read it back
+
+```bash
+curl "$API/api/dividends/1"
+```
+
+Returns the same `Distribution` object. A missing id returns `404`.
+
+### 4. Claim as a holder
+
+A holder of `asset_token` who has satisfied the minimum holding period claims their share:
+
+```bash
+curl -X POST "$API/api/dividends/1/claim"
+```
+
+The response is the updated `Distribution` with `distributed` and `claimed_percent` reflecting the payout:
+
+```json
+{
+  "id": 1,
+  "asset_token": "CBMCWLSQSWUTLUJFCNBHNBSXMUM3XU7NAQ5TSNERW4HA4ZZBYHLG4ECZ",
+  "payment_token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+  "total_amount": "100000000000",
+  "distributed": "25000000000",
+  "claimed_percent": 25.0,
+  "overflow_detected": false,
+  "completed": false,
+  "created_at_ledger": 3510000
+}
+```
+
+### 5. Reclaim the remainder after the deadline
+
+Once `deadline_ledger` has passed, the creator reclaims any unclaimed remainder:
+
+```bash
+curl -X POST "$API/api/dividends/1/reclaim"
+```
+
+This returns the updated `Distribution` with `completed: true` once the remainder is refunded.
+
+### Common errors
+
+| Status | Cause |
+| --- | --- |
+| `400` | Malformed body or `total_amount` not a valid `i128` string |
+| `404` | Distribution `id` does not exist |
+| `409` | Claim attempted before the minimum holding period, or reclaim before `deadline_ledger` |
